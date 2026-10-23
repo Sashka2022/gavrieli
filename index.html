@@ -4,6 +4,51 @@
 <script src="./vendor/react.js"></script>
 <script src="./vendor/react-dom.js"></script>
 <script src="./support.js"></script>
+<script>
+(function () {
+  var root = document.documentElement, busy = false, last = '';
+  function fitPage() {
+    busy = false;
+    var stage = document.querySelector('.stage'), fit = stage && stage.querySelector('.fit');
+    if (!fit) return;
+    var cw = stage.clientWidth - 24, ch = stage.clientHeight - 14;
+    if (cw <= 0 || ch <= 0) return;
+    var desk = cw > 700;
+    function search(tight) {
+      fit.classList.toggle('tight', tight);
+      var r = null;
+      for (var i = 0; i <= 35; i++) {
+        var sc = 1 - i * 0.02;
+        var w = !desk ? cw / sc : (sc >= 1 ? Math.min(cw, 640) : Math.min(cw / sc, 880));
+        root.style.setProperty('--fw', w + 'px');
+        root.style.setProperty('--fs', '1');
+        var h = fit.offsetHeight;
+        r = { s: sc, w: w, h: h, t: tight };
+        if (h * sc <= ch) break;
+      }
+      return r;
+    }
+    var best = search(false);
+    if (best.s < 0.62) {
+      var alt = search(true);
+      if (alt.s > best.s) best = alt;
+    }
+    fit.classList.toggle('tight', !!best.t);
+    root.style.setProperty('--fw', best.w + 'px');
+    var key = [best.s.toFixed(2), Math.round(best.w), Math.round(best.h), ch].join();
+    root.style.setProperty('--fs', best.s);
+    root.style.setProperty('--ft', Math.max(0, (ch - best.h * best.s) / 2) + 'px');
+    last = key;
+  }
+  function schedule() { if (!busy) { busy = true; requestAnimationFrame(fitPage); } }
+  window.addEventListener('resize', schedule);
+  window.addEventListener('orientationchange', schedule);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(schedule);
+  window.addEventListener('load', schedule);
+  new MutationObserver(schedule).observe(document.documentElement, { childList: true, subtree: true, characterData: true });
+  document.addEventListener('load', schedule, true);
+})();
+</script>
 <x-dc>
 <helmet>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -29,17 +74,27 @@ button:disabled{opacity:.35;cursor:default}
 @keyframes backB{from{transform:rotateY(calc(var(--s) * 80deg));opacity:.15}to{transform:none;opacity:1}}
 @media (prefers-reduced-motion: reduce){.page{animation:none !important}}
 .app[dir="rtl"] .mir{transform:scaleX(-1)}
-.pg{padding:40px 44px 28px;min-height:880px}
+.pg{padding:40px 44px 28px}
+html,body{height:100%;overflow:hidden}
+.app{height:100vh;height:100dvh;min-height:0 !important;display:flex;flex-direction:column;overflow:hidden;padding-bottom:max(0px,env(safe-area-inset-bottom,0px)) !important}
+.hdr{flex:none;width:100%}
+.stage{flex:1 1 0;min-height:0;position:relative;overflow:hidden;width:100%;box-sizing:border-box;padding:0 12px}
+.fit{position:absolute;top:var(--ft,0px);left:50%;width:var(--fw,640px);margin-left:calc(var(--fw,640px) / -2);transform:scale(var(--fs,1));transform-origin:top center}
+.bar{flex:none}
+.fit.tight .pg{padding:18px 18px 12px}
+.fit.tight .pg img{max-height:150px;width:auto !important;max-width:100% !important;margin-left:auto;margin-right:auto}
+.fit.tight .pg>div,.fit.tight .pg>div>div{gap:12px !important}
+@media (max-width:560px){.hdr{margin-bottom:8px !important;gap:8px !important}.hdr img{height:30px !important}.hdr .ttl{font-size:14px !important}.hdr button{min-height:36px !important;padding:0 12px !important;font-size:14px !important}.bar{padding:8px 0 10px !important;margin-top:6px !important}.bar button{min-height:44px !important}}
 .g2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
-@media (max-width:560px){.pg{padding:26px 18px 20px;min-height:0}.g2{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:560px){.pg{padding:26px 18px 20px}.g2{grid-template-columns:minmax(0,1fr)}}
 </style>
 </helmet>
-<div class="app" dir="{{dir}}" lang="{{lang}}" style="min-height: 100vh; box-sizing: border-box; padding: 20px 16px 0; background: #F6F0E4; color: #2A1B3D; font-family: {{font}}; line-height: 1.5">
+<div class="app" dir="{{dir}}" lang="{{lang}}" style="box-sizing: border-box; padding: 14px 16px 0; background: #F6F0E4; color: #2A1B3D; font-family: {{font}}; line-height: 1.5">
 
-<header ref="{{setTop}}" style="max-width: 980px; margin: 0 auto 22px; display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between">
+<header class="hdr" ref="{{setTop}}" style="max-width: 980px; margin: 0 auto 12px; display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between">
 <div style="display: flex; align-items: center; gap: 10px">
 <img src="./assets/de8d8aacb7dba9aa4edac9b98bd00b2b.png" alt="{{t.gabAlt}}" style="height: 44px; width: auto">
-<div style="font-weight: 700; font-size: 17px">{{t.bookTitle}}</div>
+<div class="ttl" style="font-weight: 700; font-size: 17px">{{t.bookTitle}}</div>
 </div>
 <div role="group" aria-label="{{t.chooseLang}}" style="display: flex; flex-wrap: wrap; gap: 4px; background: #FFFFFF; padding: 4px; border-radius: 999px; border: 1px solid #E4D8C3">
 <sc-for list="{{langs}}" as="l" hint-placeholder-count="4">
@@ -48,7 +103,8 @@ button:disabled{opacity:.35;cursor:default}
 </div>
 </header>
 
-<main style="max-width: 640px; margin: 0 auto; perspective: 2200px">
+<main class="stage" style="perspective: 2200px">
+<div class="fit">
 <div class="page {{pageClass}}" onTouchStart="{{onTS}}" onTouchEnd="{{onTE}}" style="position: relative; background: #FFFDF8; border-radius: {{pageRadius}}; box-shadow: {{pageShadow}}">
 <sc-if value="{{isRtl}}" hint-placeholder-val="{{ true }}">
 <div aria-hidden="true" style="position: absolute; top: 0; bottom: 0; right: 0; width: 30px; border-radius: 0 6px 6px 0; background: linear-gradient(to left, rgba(42,27,61,0.10), rgba(42,27,61,0))"></div>
@@ -286,9 +342,10 @@ button:disabled{opacity:.35;cursor:default}
 </sc-if>
 </div>
 </div>
+</div>
 </main>
 
-<nav aria-label="{{t.navLabel}}" style="position: sticky; bottom: 0; margin-top: 22px; padding: 12px 0 16px; background: #F6F0E4">
+<nav class="bar" aria-label="{{t.navLabel}}" style="margin-top: 10px; padding: 10px 0 14px; background: #F6F0E4">
 <div style="max-width: 640px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 12px">
 <button type="button" onClick="{{prev}}" disabled="{{atStart}}" style="min-height: 48px; min-width: 48px; padding: 0 18px; border-radius: 999px; border: 2px solid #2A1B3D; background: #FFFFFF; color: #2A1B3D; font-weight: 700; font-size: 16px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px">
 <svg class="mir" aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2A1B3D" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 6l-6 6 6 6"></path></svg>
